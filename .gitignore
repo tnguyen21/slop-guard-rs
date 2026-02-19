@@ -9,3 +9,8 @@ build/
 benchmark/shards/
 benchmark/output/*.csv
 benchmark/output/*.json
+
+
+# Added by cargo
+
+/target

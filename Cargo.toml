@@ -1,0 +1,21 @@
+[package]
+name = "slop-guard"
+version = "0.1.0"
+edition = "2021"
+authors = ["nwyin <nwyin@hey.com>"]
+description = "Detect AI slop patterns in prose — scores text 0-100 for ~80 regex-based rules targeting LLM writing tics"
+readme = "README.md"
+homepage = "https://github.com/tnguyen21/slop-guard-rs"
+repository = "https://github.com/tnguyen21/slop-guard-rs"
+license = "MIT"
+keywords = ["ai", "slop", "prose", "linting", "llm"]
+categories = ["command-line-utilities", "text-processing"]
+
+[dependencies]
+regex = "1"
+once_cell = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]

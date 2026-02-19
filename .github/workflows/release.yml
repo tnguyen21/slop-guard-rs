@@ -1,0 +1,201 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+  build:
+    name: Build Release Binaries
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: slop-guard
+            asset_name: slop-guard-linux-x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact_name: slop-guard
+            asset_name: slop-guard-linux-x86_64-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: slop-guard
+            asset_name: slop-guard-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: slop-guard
+            asset_name: slop-guard-macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: slop-guard.exe
+            asset_name: slop-guard-windows-x86_64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install musl tools (Linux musl only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Strip binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+      - name: Build .deb package (linux-gnu only)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          mkdir -p pkg/usr/bin pkg/DEBIAN
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} pkg/usr/bin/slop-guard
+          cat > pkg/DEBIAN/control <<EOF
+          Package: slop-guard
+          Version: ${VERSION}
+          Architecture: amd64
+          Maintainer: nwyin <nwyin@hey.com>
+          Description: Detect AI slop patterns in prose
+           Scores text 0-100 using ~80 regex rules that target common LLM writing tics.
+          Homepage: https://github.com/tnguyen21/slop-guard-rs
+          License: MIT
+          EOF
+          dpkg-deb --root-owner-group --build pkg "slop-guard_${VERSION}_amd64.deb"
+
+      - name: Upload .deb Release Asset
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./slop-guard_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_name: slop-guard_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release binaries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          for asset in slop-guard-macos-aarch64 slop-guard-macos-x86_64 slop-guard-linux-x86_64-musl; do
+            curl -fLO "https://github.com/tnguyen21/slop-guard-rs/releases/download/v${VERSION}/${asset}"
+          done
+
+      - name: Compute SHA256 checksums
+        id: sha
+        run: |
+          echo "macos_aarch64=$(sha256sum slop-guard-macos-aarch64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "macos_x86_64=$(sha256sum slop-guard-macos-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "linux_musl=$(sha256sum slop-guard-linux-x86_64-musl | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and push formula
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+          SHA_MACOS_AARCH64: ${{ steps.sha.outputs.macos_aarch64 }}
+          SHA_MACOS_X86_64: ${{ steps.sha.outputs.macos_x86_64 }}
+          SHA_LINUX_MUSL: ${{ steps.sha.outputs.linux_musl }}
+        run: |
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/tnguyen21/homebrew-slop-guard.git" tap
+          mkdir -p tap/Formula
+
+          cat > tap/Formula/slop-guard.rb <<RUBY
+          class SlopGuard < Formula
+            desc "Detect AI slop patterns in prose"
+            homepage "https://github.com/tnguyen21/slop-guard-rs"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/tnguyen21/slop-guard-rs/releases/download/v${VERSION}/slop-guard-macos-aarch64"
+                sha256 "${SHA_MACOS_AARCH64}"
+              else
+                url "https://github.com/tnguyen21/slop-guard-rs/releases/download/v${VERSION}/slop-guard-macos-x86_64"
+                sha256 "${SHA_MACOS_X86_64}"
+              end
+            end
+
+            on_linux do
+              url "https://github.com/tnguyen21/slop-guard-rs/releases/download/v${VERSION}/slop-guard-linux-x86_64-musl"
+              sha256 "${SHA_LINUX_MUSL}"
+            end
+
+            def install
+              bin.install stable.url.split("/").last => "slop-guard"
+            end
+
+            test do
+              assert_match "slop-guard", shell_output("#{bin}/slop-guard --version")
+            end
+          end
+          RUBY
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/slop-guard.rb
+          git commit -m "Update slop-guard to ${VERSION}"
+          git push
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

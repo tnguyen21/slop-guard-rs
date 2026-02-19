@@ -1,87 +1,94 @@
 # slop-guard
 
-A rule-based prose linter that scores text 0--100 for formulaic AI writing patterns. No LLM judge, no API calls. Pure regex.
+Detect AI slop patterns in prose. Scores text 0-100 using ~80 regex rules that target common LLM writing tics.
 
-It runs ~80 compiled patterns against your text and returns a numeric score, a list of specific violations with surrounding context, and concrete advice for each hit.
+## Install
 
-## Install and run
-
-Requires [uv](https://docs.astral.sh/uv/).
-
-```bash
-uv run slop_guard.py
+### From crates.io
+```sh
+cargo install slop-guard
 ```
 
-This starts a stdio-based MCP server. Dependencies are declared inline via PEP 723, so no `pyproject.toml` or `requirements.txt` is needed.
-
-## Wire into Claude Code
-
-Add to your `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "slop-guard": {
-      "command": "uv",
-      "args": ["run", "/path/to/slop_guard.py"]
-    }
-  }
-}
+### Homebrew
+```sh
+brew tap tnguyen21/slop-guard
+brew install slop-guard
 ```
 
-Replace `/path/to/slop_guard.py` with the actual path on your machine.
+### Debian/Ubuntu
+Download the `.deb` from [Releases](https://github.com/tnguyen21/slop-guard-rs/releases):
+```sh
+sudo dpkg -i slop-guard_0.1.0_amd64.deb
+```
 
-## Tools
+### From source
+```sh
+git clone https://github.com/tnguyen21/slop-guard-rs.git
+cd slop-guard-rs
+cargo install --path .
+```
 
-`check_slop(text)` -- Analyze a string. Returns JSON.
+## Usage
 
-`check_slop_file(file_path)` -- Read a file from disk and analyze it. Same output, plus a `file` field.
+```sh
+# Analyze from stdin
+echo "This is a crucial, groundbreaking paradigm shift." | slop-guard
+
+# Analyze files
+slop-guard essay.md blog-post.txt
+```
+
+### Output
+JSON object with:
+- `score`: 0-100 (higher = cleaner)
+- `band`: clean / light / moderate / heavy / saturated
+- `violations`: array of detected patterns with context
+- `advice`: actionable suggestions
+- `counts`: per-category violation counts
+
+### As a library
+```rust
+use slop_guard::analyze;
+
+let result = analyze("Your text here");
+println!("Score: {}/100 ({})", result.score, result.band);
+```
 
 ## What it catches
 
-The linter checks for overused vocabulary (adjectives, verbs, nouns, hedging adverbs), stock phrases and filler, structural patterns (bold-header-explanation blocks, long bullet runs, triadic lists, bold-term bullet runs, bullet-heavy formatting), tone markers (meta-communication, false narrativity, sentence-opener tells, weasel phrases, AI self-disclosure), rhythm monotony (uniform sentence length), em dash and elaboration colon density, contrast pairs, setup-resolution patterns, and repeated multi-word phrases (4-8 word n-grams appearing 3+ times).
+| Category | Examples |
+|----------|----------|
+| Slop words | crucial, groundbreaking, delve, tapestry, moreover |
+| Slop phrases | "it's worth noting", "let's dive in", "at the end of the day" |
+| Structural patterns | Bold-header blocks, excessive bullet runs, triadic lists |
+| Tone markers | "would you like", "feel free to", "certainly" as opener |
+| Weasel phrases | "experts suggest", "studies show", "many believe" |
+| AI disclosure | "as an AI", "as a language model" |
+| Rhythm monotony | Uniform sentence lengths (low coefficient of variation) |
+| Em dash overuse | Excessive em dashes relative to word count |
+| Contrast pairs | "X, not Y" constructions |
+| Setup-resolution | "This isn't X. It's Y." flips |
+| Colon density | Overuse of elaboration colons |
+| Pithy fragments | Short evaluative pivots ("Simple, but effective.") |
+| Phrase reuse | Repeated multi-word phrases |
 
-Scoring uses exponential decay: `score = 100 * exp(-lambda * density)`, where density is the weighted penalty sum normalized per 1000 words. Claude-specific categories (contrast pairs, setup-resolution, pithy fragments) get a concentration multiplier. Repeated use of the same tic costs more than diverse violations.
+## Score bands
 
-## Scoring bands
+| Band | Range | Meaning |
+|------|-------|---------|
+| Clean | 80-100 | Minimal AI patterns |
+| Light | 60-79 | A few tells, mostly human-sounding |
+| Moderate | 40-59 | Noticeable AI patterns |
+| Heavy | 20-39 | Significant AI influence |
+| Saturated | 0-19 | Strongly AI-generated |
 
-| Score | Band |
-|-------|------|
-| 80-100 | Clean |
-| 60-79 | Light |
-| 40-59 | Moderate |
-| 20-39 | Heavy |
-| 0-19 | Saturated |
+## Contributing
 
-## Output
-
-Both tools return JSON with this structure:
-
+```sh
+cargo test
+cargo fmt
+cargo clippy --all-targets --all-features
 ```
-score          0-100 integer
-band           "clean" / "light" / "moderate" / "heavy" / "saturated"
-word_count     integer
-violations     array of {type, rule, match, context, penalty}
-counts         per-category violation counts
-total_penalty  sum of all penalty values
-weighted_sum   after concentration multiplier
-density        weighted_sum per 1000 words
-advice         array of actionable strings, one per distinct issue
-```
-
-`violations[].type` is always `"Violation"` for typed records.
-
-## Benchmark snapshot
-
-Example score distribution from `benchmark/us_pd_newspapers_histogram.py` on
-`PleIAs/US-PD-Newspapers` (first 9,001 rows of one local shard):
-
-![slop-guard score histogram](benchmark/output/score_histogram.white.png)
-
-Example score-vs-length scatter plot from
-`benchmark/us_pd_newspapers_scatter.py` on the same shard:
-
-![slop-guard score vs length scatter](benchmark/output/score_vs_length_scatter.white.png)
 
 ## License
 
