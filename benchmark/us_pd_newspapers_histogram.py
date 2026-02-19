@@ -310,11 +310,28 @@ def plot_histogram_from_bins(
     ax.set_xlim(bin_edges[0], bin_edges[-1])
     ax.set_xlabel("Score")
     ax.set_ylabel("Count")
-    ax.set_title(title)
+    ax.text(
+        0.02,
+        0.98,
+        title,
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        multialignment="left",
+        fontsize=13,
+        bbox={
+            "boxstyle": "round,pad=0.35,rounding_size=0.25",
+            "facecolor": "white",
+            "edgecolor": "#9AA4B2",
+            "linewidth": 1.0,
+            "alpha": 0.96,
+        },
+        zorder=5,
+    )
 
     ax.grid(axis="y", color="#E6E9EF", linewidth=0.9)
     ax.grid(axis="x", visible=False)
-    fig.subplots_adjust(left=0.11, right=0.985, bottom=0.12, top=0.90)
+    fig.subplots_adjust(left=0.11, right=0.985, bottom=0.12, top=0.95)
     transparent_png, white_png = save_histogram_png_variants(fig, histogram_png)
     plt.close(fig)
     return transparent_png, white_png
