@@ -71,7 +71,7 @@ println!("Score: {}/100 ({})", result.score, result.band);
 
 ## Claude Code Plugin
 
-slop-guard ships as a Claude Code plugin with a `/deslop` skill. The skill runs slop-guard on files or text you've written and revises it to eliminate AI patterns.
+slop-guard ships as a Claude Code plugin with a `/slop-guard` skill. The skill runs slop-guard on files or text you've written and revises it to eliminate AI patterns.
 
 ### Install the plugin
 
@@ -85,9 +85,9 @@ Add the marketplace and install:
 ### Use the skill
 
 ```
-/deslop essay.md
-/deslop blog-post.txt
-/deslop last
+/slop-guard essay.md
+/slop-guard blog-post.txt
+/slop-guard last
 ```
 
 The skill will:

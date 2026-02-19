@@ -1,6 +1,6 @@
 ---
-name: deslop
-description: Run slop-guard on files or the text you just wrote to detect AI writing patterns, then revise to eliminate violations. Use when writing prose, documentation, blog posts, READMEs, or any user-facing text. Also use when the user says "deslop" or asks to check for AI slop.
+name: slop-guard
+description: Run slop-guard on files or the text you just wrote to detect AI writing patterns, then revise to eliminate violations. Use when writing prose, documentation, blog posts, READMEs, or any user-facing text. Also use when the user says "slop-guard", "deslop", or asks to check for AI slop.
 argument-hint: "[file paths or 'last' to check your most recent output]"
 allowed-tools: Bash(slop-guard *), Bash(which *), Bash(cargo install *), Bash(curl *), Bash(sh *), Read, Edit, Write, Grep
 ---
