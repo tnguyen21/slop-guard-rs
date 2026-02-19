@@ -1,0 +1,38 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+can you explore and understand what slopguard is all about. the readme and src should be sufficient
+
+i think it'd be cool to have a slop-guard skill; a skill you use to call slopguard on files or whatever we're writing and refine it with the output from slopguard
+
+can you create the .claude/skills md
+
+also how do we add it to the marketplace? e.g. how do we add a skill + binary to the plugin marketplace?
+
+### Prompt 2
+
+makes senes; can we add the claude plugin instructions to the readme and necssary files
+
+additionally just name the marketplace slop-guard, same as the tool name
+
+and include my site, nwyin.com
+
+and re install instructions, just include a note about using rust and install from crates.io, and if they don't have rust ask permission to install rustup then install the crate
+
+e.g. curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+### Prompt 3
+
+ok wait do we need to have 2 copy of the skills file? can we just remove the one at root  (e.g. .claude)
+
+### Prompt 4
+
+sick let's commit the skill; no need to release
+
+### Prompt 5
+
+wait let's call the skill slop-guard
+
