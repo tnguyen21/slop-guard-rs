@@ -11,7 +11,10 @@
   "plugins": [
     {
       "name": "slop-guard",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "tnguyen21/slop-guard-rs"
+      },
       "description": "Detect and fix AI slop patterns in prose",
       "version": "0.1.0",
       "author": {
