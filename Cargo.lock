@@ -235,7 +235,7 @@ dependencies = [
 
 [[package]]
 name = "slop-guard"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "once_cell",
