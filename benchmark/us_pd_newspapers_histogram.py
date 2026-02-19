@@ -18,6 +18,7 @@ import math
 import os
 import statistics
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ import seaborn as sns
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib import font_manager  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -173,9 +175,62 @@ def build_histogram_title(
     sample_size_scored: int | None,
 ) -> str:
     """Build a standard histogram title string."""
+    normalized_split = split.capitalize()
+    headline = "Slop-Guard Score Distribution"
     if sample_size_scored is None:
-        return f"slop-guard score distribution\n{dataset} ({split})"
-    return f"slop-guard score distribution\n{dataset} ({split}), n={sample_size_scored:,}"
+        return f"{headline}\n{dataset} ({normalized_split})"
+    return (
+        f"{headline}\n"
+        f"{dataset} ({normalized_split})\n"
+        f"$N = {sample_size_scored}$"
+    )
+
+
+def ensure_literata_font() -> str:
+    """Ensure Literata is available and return the concrete font family name."""
+    try:
+        font_manager.findfont("Literata", fallback_to_default=False)
+        return "Literata"
+    except Exception:
+        pass
+
+    font_dir = REPO_ROOT / "benchmark" / "assets" / "fonts"
+    font_dir.mkdir(parents=True, exist_ok=True)
+    font_path = font_dir / "Literata-Variable.ttf"
+    if (not font_path.is_file()) or font_path.stat().st_size == 0:
+        try:
+            urllib.request.urlretrieve(
+                "https://raw.githubusercontent.com/google/fonts/main/ofl/literata/Literata%5Bopsz%2Cwght%5D.ttf",
+                font_path,
+            )
+        except Exception as exc:  # pragma: no cover - network dependent
+            raise RuntimeError(
+                "Could not download Literata font. Install Literata and rerun."
+            ) from exc
+
+    font_manager.fontManager.addfont(str(font_path))
+    literata_name = font_manager.FontProperties(fname=str(font_path)).get_name()
+    font_manager.findfont(literata_name, fallback_to_default=False)
+    return literata_name
+
+
+def configure_plot_typography() -> None:
+    """Configure plotting typography, requiring the Literata font."""
+    literata_name = ensure_literata_font()
+
+    plt.rcParams.update(
+        {
+            "font.family": literata_name,
+            "font.serif": [literata_name],
+            "mathtext.fontset": "stix",
+            "axes.titlesize": 16,
+            "axes.labelsize": 13,
+            "xtick.labelsize": 11,
+            "ytick.labelsize": 11,
+            "axes.titleweight": "semibold",
+            "axes.labelweight": "medium",
+        }
+    )
 
 
 def histogram_white_variant_path(histogram_png: Path) -> Path:
@@ -185,10 +240,17 @@ def histogram_white_variant_path(histogram_png: Path) -> Path:
 
 def save_histogram_png_variants(fig: plt.Figure, histogram_png: Path) -> tuple[Path, Path]:
     """Save transparent and white-background PNG variants."""
+    output_dpi = 320
     histogram_png.parent.mkdir(parents=True, exist_ok=True)
     white_png = histogram_white_variant_path(histogram_png)
-    fig.savefig(histogram_png, dpi=160, transparent=True)
-    fig.savefig(white_png, dpi=160, transparent=False, facecolor="white", edgecolor="white")
+    fig.savefig(histogram_png, dpi=output_dpi, transparent=True)
+    fig.savefig(
+        white_png,
+        dpi=output_dpi,
+        transparent=False,
+        facecolor="white",
+        edgecolor="white",
+    )
     return histogram_png, white_png
 
 
@@ -227,6 +289,7 @@ def plot_histogram_from_bins(
     bin_centers = [(left + right) / 2.0 for left, right in zip(bin_starts, bin_ends)]
 
     sns.set_theme(style="whitegrid")
+    configure_plot_typography()
     fig, ax = plt.subplots(figsize=(10, 6))
     fig.patch.set_alpha(0.0)
     ax.set_facecolor("white")
@@ -245,8 +308,8 @@ def plot_histogram_from_bins(
     )
 
     ax.set_xlim(bin_edges[0], bin_edges[-1])
-    ax.set_xlabel("score")
-    ax.set_ylabel("count")
+    ax.set_xlabel("Score")
+    ax.set_ylabel("Count")
     ax.set_title(title)
 
     ax.grid(axis="y", color="#E6E9EF", linewidth=0.9)
