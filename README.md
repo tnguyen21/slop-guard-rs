@@ -76,7 +76,7 @@ advice         array of actionable strings, one per distinct issue
 Example score distribution from `benchmark/us_pd_newspapers_histogram.py` on
 `PleIAs/US-PD-Newspapers` (first 9,001 rows of one local shard):
 
-![slop-guard score histogram](benchmark/output/score_histogram.png)
+![slop-guard score histogram](benchmark/output/score_histogram.white.png)
 
 ## License
 

@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["datasets", "huggingface_hub", "matplotlib", "mcp"]
+# dependencies = ["datasets", "huggingface_hub", "matplotlib", "mcp", "seaborn"]
 # ///
 """Benchmark slop-guard on Hugging Face corpora.
 
@@ -25,6 +25,7 @@ import matplotlib
 import datasets as hf_datasets
 from datasets import load_dataset
 from huggingface_hub import hf_hub_download
+import seaborn as sns
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -118,6 +119,30 @@ def parse_args() -> argparse.Namespace:
         help="Directory for outputs.",
     )
     parser.add_argument(
+        "--histogram-png",
+        default="",
+        help=(
+            "Explicit output path for histogram PNG. Defaults to "
+            "<output-dir>/score_histogram.png."
+        ),
+    )
+    parser.add_argument(
+        "--plot-from-bins-csv",
+        default="",
+        help=(
+            "Shortcut mode: skip scoring and re-render histogram from an existing "
+            "score_histogram_bins.csv."
+        ),
+    )
+    parser.add_argument(
+        "--plot-from-summary-json",
+        default="",
+        help=(
+            "Optional summary JSON path for title metadata in shortcut mode. "
+            "Defaults to sibling summary.json next to --plot-from-bins-csv if present."
+        ),
+    )
+    parser.add_argument(
         "--save-scores",
         action="store_true",
         help="Write raw per-document scores to a CSV.",
@@ -140,6 +165,96 @@ def percentile(sorted_values: list[float], pct: float) -> float:
         return sorted_values[low]
     weight = rank - low
     return sorted_values[low] * (1 - weight) + sorted_values[high] * weight
+
+
+def build_histogram_title(
+    dataset: str,
+    split: str,
+    sample_size_scored: int | None,
+) -> str:
+    """Build a standard histogram title string."""
+    if sample_size_scored is None:
+        return f"slop-guard score distribution\n{dataset} ({split})"
+    return f"slop-guard score distribution\n{dataset} ({split}), n={sample_size_scored:,}"
+
+
+def histogram_white_variant_path(histogram_png: Path) -> Path:
+    """Return the white-background companion PNG path."""
+    return histogram_png.with_name(f"{histogram_png.stem}.white{histogram_png.suffix}")
+
+
+def save_histogram_png_variants(fig: plt.Figure, histogram_png: Path) -> tuple[Path, Path]:
+    """Save transparent and white-background PNG variants."""
+    histogram_png.parent.mkdir(parents=True, exist_ok=True)
+    white_png = histogram_white_variant_path(histogram_png)
+    fig.savefig(histogram_png, dpi=160, transparent=True)
+    fig.savefig(white_png, dpi=160, transparent=False, facecolor="white", edgecolor="white")
+    return histogram_png, white_png
+
+
+def read_histogram_bins_csv(
+    path: Path,
+) -> tuple[list[float], list[float], list[float]]:
+    """Load histogram bins from CSV."""
+    bin_starts: list[float] = []
+    bin_ends: list[float] = []
+    counts: list[float] = []
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            bin_starts.append(float(row["bin_start"]))
+            bin_ends.append(float(row["bin_end"]))
+            counts.append(float(row["count"]))
+    if not bin_starts:
+        raise RuntimeError(f"No histogram bins found in {path}")
+    return bin_starts, bin_ends, counts
+
+
+def plot_histogram_from_bins(
+    histogram_png: Path,
+    title: str,
+    bin_starts: list[float],
+    bin_ends: list[float],
+    counts: list[float],
+) -> tuple[Path, Path]:
+    """Render a histogram image from pre-aggregated bin stats."""
+    if not (len(bin_starts) == len(bin_ends) == len(counts)):
+        raise ValueError("Histogram bin arrays must have equal lengths")
+    if not bin_starts:
+        raise ValueError("Histogram bins are empty")
+
+    bin_edges = [*bin_starts, bin_ends[-1]]
+    bin_centers = [(left + right) / 2.0 for left, right in zip(bin_starts, bin_ends)]
+
+    sns.set_theme(style="whitegrid")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    fig.patch.set_alpha(0.0)
+    ax.set_facecolor("white")
+
+    sns.histplot(
+        x=bin_centers,
+        weights=counts,
+        bins=bin_edges,
+        stat="count",
+        element="bars",
+        fill=True,
+        color="#4C72B0",
+        edgecolor="#1F2937",
+        linewidth=0.7,
+        ax=ax,
+    )
+
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
+    ax.set_xlabel("score")
+    ax.set_ylabel("count")
+    ax.set_title(title)
+
+    ax.grid(axis="y", color="#E6E9EF", linewidth=0.9)
+    ax.grid(axis="x", visible=False)
+    fig.subplots_adjust(left=0.11, right=0.985, bottom=0.12, top=0.90)
+    transparent_png, white_png = save_histogram_png_variants(fig, histogram_png)
+    plt.close(fig)
+    return transparent_png, white_png
 
 
 def score_text_value(text: Any) -> dict[str, Any]:
@@ -239,6 +354,61 @@ def main() -> None:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    histogram_png = Path(args.histogram_png) if args.histogram_png else (output_dir / "score_histogram.png")
+    histogram_white_png = histogram_white_variant_path(histogram_png)
+
+    if args.plot_from_bins_csv:
+        bins_csv_path = Path(args.plot_from_bins_csv)
+        if not bins_csv_path.is_file():
+            raise FileNotFoundError(f"--plot-from-bins-csv not found: {bins_csv_path}")
+
+        summary_payload: dict[str, Any] | None = None
+        if args.plot_from_summary_json:
+            summary_path = Path(args.plot_from_summary_json)
+            if summary_path.is_file():
+                summary_payload = json.loads(summary_path.read_text(encoding="utf-8"))
+        else:
+            default_summary_path = bins_csv_path.parent / "summary.json"
+            if default_summary_path.is_file():
+                summary_payload = json.loads(default_summary_path.read_text(encoding="utf-8"))
+
+        dataset_name = (
+            str(summary_payload.get("dataset"))
+            if summary_payload and summary_payload.get("dataset")
+            else args.dataset
+        )
+        split_name = (
+            str(summary_payload.get("split"))
+            if summary_payload and summary_payload.get("split")
+            else args.split
+        )
+        sample_size_scored = None
+        if summary_payload and "sample_size_scored" in summary_payload:
+            sample_size_scored = int(summary_payload["sample_size_scored"])
+
+        bin_starts, bin_ends, counts = read_histogram_bins_csv(bins_csv_path)
+        transparent_png, white_png = plot_histogram_from_bins(
+            histogram_png=histogram_png,
+            title=build_histogram_title(dataset_name, split_name, sample_size_scored),
+            bin_starts=bin_starts,
+            bin_ends=bin_ends,
+            counts=counts,
+        )
+        print(
+            json.dumps(
+                {
+                    "mode": "plot_from_bins_csv",
+                    "histogram_bins_csv": str(bins_csv_path),
+                    "histogram_png": str(transparent_png),
+                    "histogram_white_png": str(white_png),
+                    "dataset": dataset_name,
+                    "split": split_name,
+                    "sample_size_scored": sample_size_scored,
+                },
+                indent=2,
+            )
+        )
+        return
 
     band_counts = {"clean": 0, "light": 0, "moderate": 0, "heavy": 0, "saturated": 0}
     local_shard_path: Path | None = None
@@ -324,31 +494,35 @@ def main() -> None:
     if not scores:
         raise RuntimeError("No scores produced.")
 
-    # Histogram
-    plt.figure(figsize=(10, 6))
-    counts, bin_edges, _ = plt.hist(
-        scores,
-        bins=args.bins,
-        range=(0, 100),
-        edgecolor="black",
-        linewidth=0.7,
-    )
-    plt.title(
-        f"slop-guard score distribution\n{args.dataset} ({args.split}), n={len(scores):,}"
-    )
-    plt.xlabel("score")
-    plt.ylabel("count")
-    plt.tight_layout()
+    # Histogram bin stats from raw scores.
+    bin_edges = [i * (100.0 / args.bins) for i in range(args.bins + 1)]
+    counts = [0] * args.bins
+    for score in scores:
+        if score >= 100:
+            bin_index = args.bins - 1
+        elif score <= 0:
+            bin_index = 0
+        else:
+            bin_index = int((score / 100.0) * args.bins)
+            if bin_index >= args.bins:
+                bin_index = args.bins - 1
+        counts[bin_index] += 1
 
-    histogram_png = output_dir / "score_histogram.png"
-    plt.savefig(histogram_png, dpi=160)
-    plt.close()
+    bin_starts = bin_edges[:-1]
+    bin_ends = bin_edges[1:]
+    histogram_png, histogram_white_png = plot_histogram_from_bins(
+        histogram_png=histogram_png,
+        title=build_histogram_title(args.dataset, args.split, len(scores)),
+        bin_starts=bin_starts,
+        bin_ends=bin_ends,
+        counts=[float(x) for x in counts],
+    )
 
     histogram_csv = output_dir / "score_histogram_bins.csv"
     with histogram_csv.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["bin_start", "bin_end", "count"])
-        for left, right, count in zip(bin_edges[:-1], bin_edges[1:], counts):
+        for left, right, count in zip(bin_starts, bin_ends, counts):
             writer.writerow([float(left), float(right), int(count)])
 
     if args.save_scores:
@@ -393,6 +567,7 @@ def main() -> None:
         "band_counts": band_counts,
         "artifacts": {
             "histogram_png": str(histogram_png),
+            "histogram_white_png": str(histogram_white_png),
             "histogram_bins_csv": str(histogram_csv),
         },
     }
