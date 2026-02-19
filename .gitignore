@@ -9,7 +9,8 @@ build/
 benchmark/shards/
 benchmark/output/*.csv
 benchmark/output/*.json
-
+.claude/
+.vscode/
 
 # Added by cargo
 
