@@ -1,0 +1,27 @@
+{
+  "name": "slop-guard",
+  "owner": {
+    "name": "nwyin",
+    "email": "nwyin@hey.com"
+  },
+  "metadata": {
+    "description": "AI slop detection and removal for Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "slop-guard",
+      "source": ".",
+      "description": "Detect and fix AI slop patterns in prose",
+      "version": "0.1.0",
+      "author": {
+        "name": "nwyin"
+      },
+      "homepage": "https://nwyin.com",
+      "repository": "https://github.com/tnguyen21/slop-guard-rs",
+      "license": "MIT",
+      "keywords": ["ai", "slop", "prose", "linting", "llm"],
+      "category": "writing"
+    }
+  ]
+}

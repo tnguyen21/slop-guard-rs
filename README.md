@@ -4,28 +4,15 @@ Detect AI slop patterns in prose. Scores text 0-100 using ~80 regex rules that t
 
 ## Install
 
-### From crates.io
 ```sh
 cargo install slop-guard
 ```
 
-### Homebrew
-```sh
-brew tap tnguyen21/slop-guard
-brew install slop-guard
-```
+If you don't have Rust installed:
 
-### Debian/Ubuntu
-Download the `.deb` from [Releases](https://github.com/tnguyen21/slop-guard-rs/releases):
 ```sh
-sudo dpkg -i slop-guard_0.1.0_amd64.deb
-```
-
-### From source
-```sh
-git clone https://github.com/tnguyen21/slop-guard-rs.git
-cd slop-guard-rs
-cargo install --path .
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install slop-guard
 ```
 
 ## Usage
@@ -82,6 +69,33 @@ println!("Score: {}/100 ({})", result.score, result.band);
 | Heavy | 20-39 | Significant AI influence |
 | Saturated | 0-19 | Strongly AI-generated |
 
+## Claude Code Plugin
+
+slop-guard ships as a Claude Code plugin with a `/deslop` skill. The skill runs slop-guard on files or text you've written and revises it to eliminate AI patterns.
+
+### Install the plugin
+
+Add the marketplace and install:
+
+```
+/plugin marketplace add tnguyen21/slop-guard-rs
+/plugin install slop-guard@slop-guard
+```
+
+### Use the skill
+
+```
+/deslop essay.md
+/deslop blog-post.txt
+/deslop last
+```
+
+The skill will:
+1. Check that `slop-guard` is installed (offers to install via `cargo install` if missing)
+2. Run the analysis and report the score, band, and top violations
+3. Revise the text to fix detected patterns
+4. Re-run to verify the score improved to >= 80 (clean)
+
 ## Contributing
 
 ```sh
@@ -93,3 +107,7 @@ cargo clippy --all-targets --all-features
 ## License
 
 MIT
+
+---
+
+[nwyin.com](https://nwyin.com)

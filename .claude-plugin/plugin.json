@@ -1,0 +1,13 @@
+{
+  "name": "slop-guard",
+  "description": "Detect and fix AI slop patterns in prose. Scores text 0-100 using ~80 regex rules that target common LLM writing tics.",
+  "version": "0.1.0",
+  "author": {
+    "name": "nwyin",
+    "email": "nwyin@hey.com"
+  },
+  "homepage": "https://nwyin.com",
+  "repository": "https://github.com/tnguyen21/slop-guard-rs",
+  "license": "MIT",
+  "keywords": ["ai", "slop", "prose", "linting", "llm", "writing"]
+}
