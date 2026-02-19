@@ -1057,6 +1057,7 @@ fn rule_colon_density(text: &str) -> RuleOutput {
                 continue;
             }
             let snippet_end = std::cmp::min(col_pos + 10, line.len());
+            let snippet_end = snap_to_char_boundary(line, snippet_end, true);
             let snippet = &line[col_pos..snippet_end];
             if JSON_COLON_RE.is_match(snippet) {
                 continue;

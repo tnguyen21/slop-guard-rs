@@ -1,6 +1,6 @@
 [package]
 name = "slop-guard"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["nwyin <nwyin@hey.com>"]
 description = "Detect AI slop patterns in prose — scores text 0-100 for ~80 regex-based rules targeting LLM writing tics"
