@@ -354,11 +354,11 @@ def plot_scatter_from_samples(
 
     ax.text(
         0.02,
-        0.98,
+        0.02,
         title,
         transform=ax.transAxes,
         ha="left",
-        va="top",
+        va="bottom",
         multialignment="left",
         fontsize=13,
         bbox={
