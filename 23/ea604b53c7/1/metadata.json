@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "23ea604b53c7",
+  "session_id": "336b3e71-72f0-4ae7-aa03-fd89142dc77c",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T15:30:50.780586Z",
+  "branch": "feat/json-config-calibration-tests",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Cargo.toml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0902a486d56e",
+  "transcript_identifier_at_start": "e427fc91-3913-4aba-9a91-436156f6e5d2",
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 131671,
+    "cache_read_tokens": 2625246,
+    "output_tokens": 1398,
+    "api_call_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T15:30:50.624647Z",
+    "agent_lines": 0,
+    "human_added": 1316,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 1316,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-tau-projects-slop-guard-rs/336b3e71-72f0-4ae7-aa03-fd89142dc77c.jsonl"
+}
