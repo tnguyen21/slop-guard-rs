@@ -35,22 +35,32 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact_name: slop-guard
             asset_name: slop-guard-linux-x86_64
+            calibrate_artifact: slop-guard-calibrate
+            calibrate_asset: slop-guard-calibrate-linux-x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             artifact_name: slop-guard
             asset_name: slop-guard-linux-x86_64-musl
+            calibrate_artifact: slop-guard-calibrate
+            calibrate_asset: slop-guard-calibrate-linux-x86_64-musl
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: slop-guard
             asset_name: slop-guard-macos-x86_64
+            calibrate_artifact: slop-guard-calibrate
+            calibrate_asset: slop-guard-calibrate-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: slop-guard
             asset_name: slop-guard-macos-aarch64
+            calibrate_artifact: slop-guard-calibrate
+            calibrate_asset: slop-guard-calibrate-macos-aarch64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: slop-guard.exe
             asset_name: slop-guard-windows-x86_64.exe
+            calibrate_artifact: slop-guard-calibrate.exe
+            calibrate_asset: slop-guard-calibrate-windows-x86_64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -68,14 +78,18 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Strip binary (Unix)
+      - name: Strip binaries (Unix)
         if: matrix.os != 'windows-latest'
-        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        run: |
+          strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          strip target/${{ matrix.target }}/release/${{ matrix.calibrate_artifact }}
 
-      - name: Upload Release Asset
+      - name: Upload Release Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "v${{ needs.create-release.outputs.version }}" "./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}#${{ matrix.asset_name }}"
+        run: |
+          gh release upload "v${{ needs.create-release.outputs.version }}" "./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}#${{ matrix.asset_name }}" --clobber
+          gh release upload "v${{ needs.create-release.outputs.version }}" "./target/${{ matrix.target }}/release/${{ matrix.calibrate_artifact }}#${{ matrix.calibrate_asset }}" --clobber
 
       - name: Build .deb package (linux-gnu only)
         if: matrix.target == 'x86_64-unknown-linux-gnu'
@@ -99,7 +113,7 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "v${{ needs.create-release.outputs.version }}" "./slop-guard_${{ needs.create-release.outputs.version }}_amd64.deb"
+        run: gh release upload "v${{ needs.create-release.outputs.version }}" "./slop-guard_${{ needs.create-release.outputs.version }}_amd64.deb" --clobber
 
   update-homebrew:
     name: Update Homebrew Formula
