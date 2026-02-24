@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e4e7996a28f1",
+  "session_id": "325e69af-b27c-453e-9aa2-5d2a1ba8c132",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T15:35:06.945502Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/release.yml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "09b2e32828da",
+  "token_usage": {
+    "input_tokens": 73,
+    "cache_creation_tokens": 95535,
+    "cache_read_tokens": 5460996,
+    "output_tokens": 12492,
+    "api_call_count": 61
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T15:35:06.718701Z",
+    "agent_lines": 0,
+    "human_added": 14,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 14,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-tau-projects-slop-guard-rs/325e69af-b27c-453e-9aa2-5d2a1ba8c132.jsonl"
+}

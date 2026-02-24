@@ -1,0 +1,150 @@
+Implement the following plan:
+
+# Plan: JSON Config, Calibration Binary, Per-Rule Tests
+
+## Context
+
+The upstream Python slop-guard (eric-tramel/slop-guard) added three pieces of infrastructure since our fork point: JSONL config loading, corpus-based penalty calibration, and per-rule test examples. This plan ports all three to our Rust implementation. Feature 1 is prerequisite for Feature 2.
+
+---
+
+## Feature 1: JSON Config File Support
+
+**Goal:** Let users override hyperparameters via `--config config.json` without recompiling.
+
+### Approach: Replace static `Hyperparameters` with an owned, serializable struct
+
+1. **Replace `Hyperparameters` struct** in `src/lib.rs` (lines 39-159):
+   - Change `&'static str` / `&'static [&'static str]` fields to `String` / `Vec<String>`
+   - Add `#[derive(Clone, Serialize, Deserialize)]`
+   - Implement `Default` with current hardcoded values from `static HP`
+   - Remove the old `static HP` and `Hyperparameters` struct entirely
+
+2. **Add `HyperparametersOverride`** — all fields `Option<T>`, `#[derive(Default, Deserialize)]` for partial JSON:
+   ```json
+   { "slop_word_penalty": -3, "rhythm_cv_threshold": 0.25 }
+   ```
+   Only specified fields override defaults.
+
+3. **Add `with_overrides()` merge method** using a macro to reduce boilerplate across ~50 fields.
+
+4. **Refactor all 18 rule functions + helpers** to accept `hp: &Hyperparameters` instead of reading `static HP`:
+   - `rule_slop_words(text, hp)`, `rule_slop_phrases(text, hp)`, etc.
+   - `compute_weighted_sum(violations, counts, hp)`, `band_for_score(score, hp)`
+   - `find_repeated_ngrams(text, hp)`
+
+5. **New public API:** `analyze_with_config(text: &str, hp: &Hyperparameters) -> AnalysisResult`
+   - Existing `analyze(text)` becomes a thin wrapper using `Hyperparameters::default()`
+
+6. **Update CLI** (`src/main.rs`): add `--config <path>` flag, load JSON, merge with defaults, call `analyze_with_config`.
+
+### Files modified
+- `src/lib.rs` — struct changes, all rule function signatures, analyze refactor
+- `src/main.rs` — `--config` CLI flag
+
+---
+
+## Feature 2: Calibration Binary
+
+**Goal:** Offline tool to calibrate penalties against a human-written corpus.
+
+### Approach: Rust binary at `src/bin/calibrate.rs`
+
+1. **Add `[[bin]]` to `Cargo.toml`:**
+   ```toml
+   [[bin]]
+   name = "slop-guard-calibrate"
+   path = "src/bin/calibrate.rs"
+   ```
+
+2. **Expose `RULE_NAMES` constant** from `lib.rs` — list of all 18 count keys, reuse in `initial_counts()`.
+
+3. **Binary logic:**
+   - Takes `corpus_dir` (directory of `.txt` files) + `--output calibrated.json` + `--min-words 50`
+   - Runs `analyze_with_config()` on each document with default hyperparameters
+   - Tracks per-rule support: how many docs trigger each rule
+   - Applies `fit_penalty` formula: `scale = clamp(1.5 - support, 0.5, 1.75)`, `magnitude = max(1, round(|base| * scale))`
+   - Outputs calibrated `Hyperparameters` as JSON (usable with `--config`)
+   - Prints support ratio table to stderr
+
+### Files created
+- `src/bin/calibrate.rs`
+
+### Files modified
+- `Cargo.toml` — add `[[bin]]`
+- `src/lib.rs` — add `pub const RULE_NAMES`
+
+---
+
+## Feature 3: Per-Rule Test Examples
+
+**Goal:** 72 unit tests (18 rules × 2 violations + 2 non-violations), ported from upstream.
+
+### Approach: `pub(crate)` rule functions + in-crate test module
+
+1. **Change rule function visibility** to `pub(crate)` (also `RuleOutput`, sentence splitting, line splitting helpers).
+
+2. **Create `src/rule_tests.rs`** with 72 tests. Each test calls one rule function directly and asserts violations/no-violations. Add `#[cfg(test)] mod rule_tests;` in `lib.rs`.
+
+3. **Handle short-text bypass:** Testing rule functions directly avoids the 10-word minimum in `analyze()`. Rules that need `sentences: &[String]` or `lines: &[&str]` will use helper splitting functions.
+
+### Files created
+- `src/rule_tests.rs`
+
+### Files modified
+- `src/lib.rs` — visibility changes, add `#[cfg(test)] mod rule_tests;`
+
+---
+
+## Implementation Order
+
+1. **Feature 1** (JSON config) — prerequisite for everything else
+2. **Feature 3** (per-rule tests) — validates refactored rule functions
+3. **Feature 2** (calibration binary) — uses public API from Feature 1
+
+## Verification
+
+- `cargo test` — all existing integration tests + 72 new rule tests pass
+- `cargo clippy` + `cargo fmt` — clean
+- Manual: `echo "This is a crucial test." | slop-guard` still works
+- Manual: `slop-guard --config test.json somefile.txt` with partial override JSON
+- Manual: `slop-guard-calibrate ./some-txt-dir --output calibrated.json` produces valid JSON
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/tau/.claude/projects/-Users-tau-projects-slop-guard-rs/4dab747b-7f8c-4a20-b88d-a0138730342b.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+sick, can we merge into main and get a new tag and release built
+
+---
+
+[Request interrupted by user]
+
+---
+
+can we also draft something short for the release notes
+
+---
+
+[Request interrupted by user]
+
+---
+
+you can give me the md and i'll copy + paste on gh
+
+---
+
+Run gh release upload "v0.3.0" "./target/x86_64-unknown-linux-musl/release/slop-guard#slop-guard-linux-x86_64-musl"
+asset under the same name already exists: [slop-guard]
+Error: Process completed with exit code 1.
+
+ruh roh
+
+build erro
+
+---
+
+ye
