@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Data structures
@@ -36,127 +36,295 @@ pub struct AnalysisResult {
 // Hyperparameters
 // ---------------------------------------------------------------------------
 
-struct Hyperparameters {
-    concentration_alpha: f64,
-    decay_lambda: f64,
-    claude_categories: &'static [&'static str],
-    context_window_chars: usize,
-    short_text_word_count: usize,
-    repeated_ngram_min_n: usize,
-    repeated_ngram_max_n: usize,
-    repeated_ngram_min_count: usize,
-    slop_word_penalty: i32,
-    slop_phrase_penalty: i32,
-    structural_bold_header_min: usize,
-    structural_bold_header_penalty: i32,
-    structural_bullet_run_min: usize,
-    structural_bullet_run_penalty: i32,
-    triadic_record_cap: usize,
-    triadic_penalty: i32,
-    triadic_advice_min: usize,
-    tone_penalty: i32,
-    sentence_opener_penalty: i32,
-    weasel_penalty: i32,
-    ai_disclosure_penalty: i32,
-    placeholder_penalty: i32,
-    rhythm_min_sentences: usize,
-    rhythm_cv_threshold: f64,
-    rhythm_penalty: i32,
-    em_dash_words_basis: f64,
-    em_dash_density_threshold: f64,
-    em_dash_penalty: i32,
-    contrast_record_cap: usize,
-    contrast_penalty: i32,
-    contrast_advice_min: usize,
-    setup_resolution_record_cap: usize,
-    setup_resolution_penalty: i32,
-    colon_words_basis: f64,
-    colon_density_threshold: f64,
-    colon_density_penalty: i32,
-    pithy_max_sentence_words: usize,
-    pithy_record_cap: usize,
-    pithy_penalty: i32,
-    bullet_density_threshold: f64,
-    bullet_density_penalty: i32,
-    blockquote_min_lines: usize,
-    blockquote_free_lines: usize,
-    blockquote_cap: usize,
-    blockquote_penalty_step: i32,
-    bold_bullet_run_min: usize,
-    bold_bullet_run_penalty: i32,
-    horizontal_rule_min: usize,
-    horizontal_rule_penalty: i32,
-    phrase_reuse_record_cap: usize,
-    phrase_reuse_penalty: i32,
-    density_words_basis: f64,
-    score_min: i32,
-    score_max: i32,
-    band_clean_min: i32,
-    band_light_min: i32,
-    band_moderate_min: i32,
-    band_heavy_min: i32,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Hyperparameters {
+    pub concentration_alpha: f64,
+    pub decay_lambda: f64,
+    pub claude_categories: Vec<String>,
+    pub context_window_chars: usize,
+    pub short_text_word_count: usize,
+    pub repeated_ngram_min_n: usize,
+    pub repeated_ngram_max_n: usize,
+    pub repeated_ngram_min_count: usize,
+    pub slop_word_penalty: i32,
+    pub slop_phrase_penalty: i32,
+    pub structural_bold_header_min: usize,
+    pub structural_bold_header_penalty: i32,
+    pub structural_bullet_run_min: usize,
+    pub structural_bullet_run_penalty: i32,
+    pub triadic_record_cap: usize,
+    pub triadic_penalty: i32,
+    pub triadic_advice_min: usize,
+    pub tone_penalty: i32,
+    pub sentence_opener_penalty: i32,
+    pub weasel_penalty: i32,
+    pub ai_disclosure_penalty: i32,
+    pub placeholder_penalty: i32,
+    pub rhythm_min_sentences: usize,
+    pub rhythm_cv_threshold: f64,
+    pub rhythm_penalty: i32,
+    pub em_dash_words_basis: f64,
+    pub em_dash_density_threshold: f64,
+    pub em_dash_penalty: i32,
+    pub contrast_record_cap: usize,
+    pub contrast_penalty: i32,
+    pub contrast_advice_min: usize,
+    pub setup_resolution_record_cap: usize,
+    pub setup_resolution_penalty: i32,
+    pub colon_words_basis: f64,
+    pub colon_density_threshold: f64,
+    pub colon_density_penalty: i32,
+    pub pithy_max_sentence_words: usize,
+    pub pithy_record_cap: usize,
+    pub pithy_penalty: i32,
+    pub bullet_density_threshold: f64,
+    pub bullet_density_penalty: i32,
+    pub blockquote_min_lines: usize,
+    pub blockquote_free_lines: usize,
+    pub blockquote_cap: usize,
+    pub blockquote_penalty_step: i32,
+    pub bold_bullet_run_min: usize,
+    pub bold_bullet_run_penalty: i32,
+    pub horizontal_rule_min: usize,
+    pub horizontal_rule_penalty: i32,
+    pub phrase_reuse_record_cap: usize,
+    pub phrase_reuse_penalty: i32,
+    pub density_words_basis: f64,
+    pub score_min: i32,
+    pub score_max: i32,
+    pub band_clean_min: i32,
+    pub band_light_min: i32,
+    pub band_moderate_min: i32,
+    pub band_heavy_min: i32,
 }
 
-static HP: Hyperparameters = Hyperparameters {
-    concentration_alpha: 2.5,
-    decay_lambda: 0.04,
-    claude_categories: &["contrast_pairs", "pithy_fragment", "setup_resolution"],
-    context_window_chars: 60,
-    short_text_word_count: 10,
-    repeated_ngram_min_n: 4,
-    repeated_ngram_max_n: 8,
-    repeated_ngram_min_count: 3,
-    slop_word_penalty: -2,
-    slop_phrase_penalty: -3,
-    structural_bold_header_min: 3,
-    structural_bold_header_penalty: -5,
-    structural_bullet_run_min: 6,
-    structural_bullet_run_penalty: -3,
-    triadic_record_cap: 5,
-    triadic_penalty: -1,
-    triadic_advice_min: 3,
-    tone_penalty: -3,
-    sentence_opener_penalty: -2,
-    weasel_penalty: -2,
-    ai_disclosure_penalty: -10,
-    placeholder_penalty: -5,
-    rhythm_min_sentences: 5,
-    rhythm_cv_threshold: 0.3,
-    rhythm_penalty: -5,
-    em_dash_words_basis: 150.0,
-    em_dash_density_threshold: 1.0,
-    em_dash_penalty: -3,
-    contrast_record_cap: 5,
-    contrast_penalty: -1,
-    contrast_advice_min: 2,
-    setup_resolution_record_cap: 5,
-    setup_resolution_penalty: -3,
-    colon_words_basis: 150.0,
-    colon_density_threshold: 1.5,
-    colon_density_penalty: -3,
-    pithy_max_sentence_words: 6,
-    pithy_record_cap: 3,
-    pithy_penalty: -2,
-    bullet_density_threshold: 0.40,
-    bullet_density_penalty: -8,
-    blockquote_min_lines: 3,
-    blockquote_free_lines: 2,
-    blockquote_cap: 4,
-    blockquote_penalty_step: -3,
-    bold_bullet_run_min: 3,
-    bold_bullet_run_penalty: -5,
-    horizontal_rule_min: 4,
-    horizontal_rule_penalty: -3,
-    phrase_reuse_record_cap: 5,
-    phrase_reuse_penalty: -1,
-    density_words_basis: 1000.0,
-    score_min: 0,
-    score_max: 100,
-    band_clean_min: 80,
-    band_light_min: 60,
-    band_moderate_min: 40,
-    band_heavy_min: 20,
-};
+impl Default for Hyperparameters {
+    fn default() -> Self {
+        Self {
+            concentration_alpha: 2.5,
+            decay_lambda: 0.04,
+            claude_categories: vec![
+                "contrast_pairs".to_string(),
+                "pithy_fragment".to_string(),
+                "setup_resolution".to_string(),
+            ],
+            context_window_chars: 60,
+            short_text_word_count: 10,
+            repeated_ngram_min_n: 4,
+            repeated_ngram_max_n: 8,
+            repeated_ngram_min_count: 3,
+            slop_word_penalty: -2,
+            slop_phrase_penalty: -3,
+            structural_bold_header_min: 3,
+            structural_bold_header_penalty: -5,
+            structural_bullet_run_min: 6,
+            structural_bullet_run_penalty: -3,
+            triadic_record_cap: 5,
+            triadic_penalty: -1,
+            triadic_advice_min: 3,
+            tone_penalty: -3,
+            sentence_opener_penalty: -2,
+            weasel_penalty: -2,
+            ai_disclosure_penalty: -10,
+            placeholder_penalty: -5,
+            rhythm_min_sentences: 5,
+            rhythm_cv_threshold: 0.3,
+            rhythm_penalty: -5,
+            em_dash_words_basis: 150.0,
+            em_dash_density_threshold: 1.0,
+            em_dash_penalty: -3,
+            contrast_record_cap: 5,
+            contrast_penalty: -1,
+            contrast_advice_min: 2,
+            setup_resolution_record_cap: 5,
+            setup_resolution_penalty: -3,
+            colon_words_basis: 150.0,
+            colon_density_threshold: 1.5,
+            colon_density_penalty: -3,
+            pithy_max_sentence_words: 6,
+            pithy_record_cap: 3,
+            pithy_penalty: -2,
+            bullet_density_threshold: 0.40,
+            bullet_density_penalty: -8,
+            blockquote_min_lines: 3,
+            blockquote_free_lines: 2,
+            blockquote_cap: 4,
+            blockquote_penalty_step: -3,
+            bold_bullet_run_min: 3,
+            bold_bullet_run_penalty: -5,
+            horizontal_rule_min: 4,
+            horizontal_rule_penalty: -3,
+            phrase_reuse_record_cap: 5,
+            phrase_reuse_penalty: -1,
+            density_words_basis: 1000.0,
+            score_min: 0,
+            score_max: 100,
+            band_clean_min: 80,
+            band_light_min: 60,
+            band_moderate_min: 40,
+            band_heavy_min: 20,
+        }
+    }
+}
+
+/// Partial override — all fields optional. Only specified fields replace defaults.
+#[derive(Debug, Default, Deserialize)]
+pub struct HyperparametersOverride {
+    pub concentration_alpha: Option<f64>,
+    pub decay_lambda: Option<f64>,
+    pub claude_categories: Option<Vec<String>>,
+    pub context_window_chars: Option<usize>,
+    pub short_text_word_count: Option<usize>,
+    pub repeated_ngram_min_n: Option<usize>,
+    pub repeated_ngram_max_n: Option<usize>,
+    pub repeated_ngram_min_count: Option<usize>,
+    pub slop_word_penalty: Option<i32>,
+    pub slop_phrase_penalty: Option<i32>,
+    pub structural_bold_header_min: Option<usize>,
+    pub structural_bold_header_penalty: Option<i32>,
+    pub structural_bullet_run_min: Option<usize>,
+    pub structural_bullet_run_penalty: Option<i32>,
+    pub triadic_record_cap: Option<usize>,
+    pub triadic_penalty: Option<i32>,
+    pub triadic_advice_min: Option<usize>,
+    pub tone_penalty: Option<i32>,
+    pub sentence_opener_penalty: Option<i32>,
+    pub weasel_penalty: Option<i32>,
+    pub ai_disclosure_penalty: Option<i32>,
+    pub placeholder_penalty: Option<i32>,
+    pub rhythm_min_sentences: Option<usize>,
+    pub rhythm_cv_threshold: Option<f64>,
+    pub rhythm_penalty: Option<i32>,
+    pub em_dash_words_basis: Option<f64>,
+    pub em_dash_density_threshold: Option<f64>,
+    pub em_dash_penalty: Option<i32>,
+    pub contrast_record_cap: Option<usize>,
+    pub contrast_penalty: Option<i32>,
+    pub contrast_advice_min: Option<usize>,
+    pub setup_resolution_record_cap: Option<usize>,
+    pub setup_resolution_penalty: Option<i32>,
+    pub colon_words_basis: Option<f64>,
+    pub colon_density_threshold: Option<f64>,
+    pub colon_density_penalty: Option<i32>,
+    pub pithy_max_sentence_words: Option<usize>,
+    pub pithy_record_cap: Option<usize>,
+    pub pithy_penalty: Option<i32>,
+    pub bullet_density_threshold: Option<f64>,
+    pub bullet_density_penalty: Option<i32>,
+    pub blockquote_min_lines: Option<usize>,
+    pub blockquote_free_lines: Option<usize>,
+    pub blockquote_cap: Option<usize>,
+    pub blockquote_penalty_step: Option<i32>,
+    pub bold_bullet_run_min: Option<usize>,
+    pub bold_bullet_run_penalty: Option<i32>,
+    pub horizontal_rule_min: Option<usize>,
+    pub horizontal_rule_penalty: Option<i32>,
+    pub phrase_reuse_record_cap: Option<usize>,
+    pub phrase_reuse_penalty: Option<i32>,
+    pub density_words_basis: Option<f64>,
+    pub score_min: Option<i32>,
+    pub score_max: Option<i32>,
+    pub band_clean_min: Option<i32>,
+    pub band_light_min: Option<i32>,
+    pub band_moderate_min: Option<i32>,
+    pub band_heavy_min: Option<i32>,
+}
+
+impl Hyperparameters {
+    pub fn with_overrides(mut self, ov: &HyperparametersOverride) -> Self {
+        macro_rules! apply {
+            ($($field:ident),* $(,)?) => {
+                $(if let Some(ref v) = ov.$field { self.$field = v.clone(); })*
+            };
+        }
+        apply!(
+            concentration_alpha,
+            decay_lambda,
+            claude_categories,
+            context_window_chars,
+            short_text_word_count,
+            repeated_ngram_min_n,
+            repeated_ngram_max_n,
+            repeated_ngram_min_count,
+            slop_word_penalty,
+            slop_phrase_penalty,
+            structural_bold_header_min,
+            structural_bold_header_penalty,
+            structural_bullet_run_min,
+            structural_bullet_run_penalty,
+            triadic_record_cap,
+            triadic_penalty,
+            triadic_advice_min,
+            tone_penalty,
+            sentence_opener_penalty,
+            weasel_penalty,
+            ai_disclosure_penalty,
+            placeholder_penalty,
+            rhythm_min_sentences,
+            rhythm_cv_threshold,
+            rhythm_penalty,
+            em_dash_words_basis,
+            em_dash_density_threshold,
+            em_dash_penalty,
+            contrast_record_cap,
+            contrast_penalty,
+            contrast_advice_min,
+            setup_resolution_record_cap,
+            setup_resolution_penalty,
+            colon_words_basis,
+            colon_density_threshold,
+            colon_density_penalty,
+            pithy_max_sentence_words,
+            pithy_record_cap,
+            pithy_penalty,
+            bullet_density_threshold,
+            bullet_density_penalty,
+            blockquote_min_lines,
+            blockquote_free_lines,
+            blockquote_cap,
+            blockquote_penalty_step,
+            bold_bullet_run_min,
+            bold_bullet_run_penalty,
+            horizontal_rule_min,
+            horizontal_rule_penalty,
+            phrase_reuse_record_cap,
+            phrase_reuse_penalty,
+            density_words_basis,
+            score_min,
+            score_max,
+            band_clean_min,
+            band_light_min,
+            band_moderate_min,
+            band_heavy_min,
+        );
+        self
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Rule names constant
+// ---------------------------------------------------------------------------
+
+pub const RULE_NAMES: &[&str] = &[
+    "slop_words",
+    "slop_phrases",
+    "structural",
+    "tone",
+    "weasel",
+    "ai_disclosure",
+    "placeholder",
+    "rhythm",
+    "em_dash",
+    "contrast_pairs",
+    "colon_density",
+    "pithy_fragment",
+    "setup_resolution",
+    "bullet_density",
+    "blockquote_density",
+    "bold_bullet_list",
+    "horizontal_rules",
+    "phrase_reuse",
+];
 
 // ---------------------------------------------------------------------------
 // Compiled patterns
@@ -510,10 +678,10 @@ struct NgramResult {
     n: usize,
 }
 
-fn find_repeated_ngrams(text: &str) -> Vec<NgramResult> {
-    let min_n = HP.repeated_ngram_min_n;
-    let max_n = HP.repeated_ngram_max_n;
-    let min_count = HP.repeated_ngram_min_count;
+fn find_repeated_ngrams(text: &str, hp: &Hyperparameters) -> Vec<NgramResult> {
+    let min_n = hp.repeated_ngram_min_n;
+    let max_n = hp.repeated_ngram_max_n;
+    let min_count = hp.repeated_ngram_min_count;
 
     // Tokenize
     let raw_tokens: Vec<&str> = text.split_whitespace().collect();
@@ -594,32 +762,26 @@ fn find_repeated_ngrams(text: &str) -> Vec<NgramResult> {
         .collect()
 }
 
+pub(crate) fn split_sentences(text: &str) -> Vec<String> {
+    SENTENCE_SPLIT_RE
+        .split(text)
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+#[cfg(test)]
+pub(crate) fn split_lines(text: &str) -> Vec<&str> {
+    text.split('\n').collect()
+}
+
 // ---------------------------------------------------------------------------
 // Initial counts
 // ---------------------------------------------------------------------------
 
 fn initial_counts() -> HashMap<String, usize> {
     let mut m = HashMap::new();
-    for key in &[
-        "slop_words",
-        "slop_phrases",
-        "structural",
-        "tone",
-        "weasel",
-        "ai_disclosure",
-        "placeholder",
-        "rhythm",
-        "em_dash",
-        "contrast_pairs",
-        "colon_density",
-        "pithy_fragment",
-        "setup_resolution",
-        "bullet_density",
-        "blockquote_density",
-        "bold_bullet_list",
-        "horizontal_rules",
-        "phrase_reuse",
-    ] {
+    for key in RULE_NAMES {
         m.insert(key.to_string(), 0);
     }
     m
@@ -629,10 +791,11 @@ fn initial_counts() -> HashMap<String, usize> {
 // Rule implementations
 // ---------------------------------------------------------------------------
 
-struct RuleOutput {
-    violations: Vec<Violation>,
-    advice: Vec<String>,
-    count_deltas: HashMap<String, usize>,
+#[derive(Debug)]
+pub(crate) struct RuleOutput {
+    pub violations: Vec<Violation>,
+    pub advice: Vec<String>,
+    pub count_deltas: HashMap<String, usize>,
 }
 
 impl RuleOutput {
@@ -649,9 +812,9 @@ impl RuleOutput {
     }
 }
 
-fn rule_slop_words(text: &str) -> RuleOutput {
+pub(crate) fn rule_slop_words(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
     for m in SLOP_WORD_RE.find_iter(text) {
         let word = m.as_str().to_lowercase();
         out.violations.push(Violation {
@@ -659,7 +822,7 @@ fn rule_slop_words(text: &str) -> RuleOutput {
             rule: "slop_word".to_string(),
             match_text: word.clone(),
             context: context_around(text, m.start(), m.end(), width),
-            penalty: HP.slop_word_penalty,
+            penalty: hp.slop_word_penalty,
         });
         out.advice.push(format!(
             "Replace '{word}' \u{2014} what specifically do you mean?"
@@ -669,9 +832,9 @@ fn rule_slop_words(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_slop_phrases(text: &str) -> RuleOutput {
+pub(crate) fn rule_slop_phrases(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     for pat in SLOP_PHRASES.iter() {
         for m in pat.find_iter(text) {
@@ -681,7 +844,7 @@ fn rule_slop_phrases(text: &str) -> RuleOutput {
                 rule: "slop_phrase".to_string(),
                 match_text: phrase.clone(),
                 context: context_around(text, m.start(), m.end(), width),
-                penalty: HP.slop_phrase_penalty,
+                penalty: hp.slop_phrase_penalty,
             });
             out.advice.push(format!(
                 "Cut '{phrase}' \u{2014} just state the point directly."
@@ -697,7 +860,7 @@ fn rule_slop_phrases(text: &str) -> RuleOutput {
             rule: "slop_phrase".to_string(),
             match_text: phrase.clone(),
             context: context_around(text, m.start(), m.end(), width),
-            penalty: HP.slop_phrase_penalty,
+            penalty: hp.slop_phrase_penalty,
         });
         out.advice.push(format!(
             "Cut '{phrase}' \u{2014} just state the point directly."
@@ -707,13 +870,13 @@ fn rule_slop_phrases(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_structural(text: &str, lines: &[&str]) -> RuleOutput {
+pub(crate) fn rule_structural(text: &str, lines: &[&str], hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     // Bold headers
     let bold_matches: Vec<_> = BOLD_HEADER_RE.find_iter(text).collect();
-    if bold_matches.len() >= HP.structural_bold_header_min {
+    if bold_matches.len() >= hp.structural_bold_header_min {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "structural".to_string(),
@@ -722,7 +885,7 @@ fn rule_structural(text: &str, lines: &[&str]) -> RuleOutput {
                 "Found {} instances of **Bold.** pattern",
                 bold_matches.len()
             ),
-            penalty: HP.structural_bold_header_penalty,
+            penalty: hp.structural_bold_header_penalty,
         });
         out.advice.push(format!(
             "Vary paragraph structure \u{2014} {} bold-header-explanation blocks in a row reads as LLM listicle.",
@@ -737,13 +900,13 @@ fn rule_structural(text: &str, lines: &[&str]) -> RuleOutput {
         if BULLET_LINE_RE.is_match(line) {
             run_length += 1;
         } else {
-            if run_length >= HP.structural_bullet_run_min {
+            if run_length >= hp.structural_bullet_run_min {
                 out.violations.push(Violation {
                     violation_type: "Violation".to_string(),
                     rule: "structural".to_string(),
                     match_text: "excessive_bullets".to_string(),
                     context: format!("Run of {run_length} consecutive bullet lines"),
-                    penalty: HP.structural_bullet_run_penalty,
+                    penalty: hp.structural_bullet_run_penalty,
                 });
                 out.advice.push(format!(
                     "Consider prose instead of this {run_length}-item bullet list."
@@ -753,13 +916,13 @@ fn rule_structural(text: &str, lines: &[&str]) -> RuleOutput {
             run_length = 0;
         }
     }
-    if run_length >= HP.structural_bullet_run_min {
+    if run_length >= hp.structural_bullet_run_min {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "structural".to_string(),
             match_text: "excessive_bullets".to_string(),
             context: format!("Run of {run_length} consecutive bullet lines"),
-            penalty: HP.structural_bullet_run_penalty,
+            penalty: hp.structural_bullet_run_penalty,
         });
         out.advice.push(format!(
             "Consider prose instead of this {run_length}-item bullet list."
@@ -770,17 +933,17 @@ fn rule_structural(text: &str, lines: &[&str]) -> RuleOutput {
     // Triadic
     let triadic_matches: Vec<_> = TRIADIC_RE.find_iter(text).collect();
     let triadic_count = triadic_matches.len();
-    for m in triadic_matches.iter().take(HP.triadic_record_cap) {
+    for m in triadic_matches.iter().take(hp.triadic_record_cap) {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "structural".to_string(),
             match_text: "triadic".to_string(),
             context: context_around(text, m.start(), m.end(), width),
-            penalty: HP.triadic_penalty,
+            penalty: hp.triadic_penalty,
         });
         out.inc("structural");
     }
-    if triadic_count >= HP.triadic_advice_min {
+    if triadic_count >= hp.triadic_advice_min {
         out.advice.push(format!(
             "{triadic_count} triadic structures ('X, Y, and Z') \u{2014} vary your list cadence."
         ));
@@ -789,9 +952,9 @@ fn rule_structural(text: &str, lines: &[&str]) -> RuleOutput {
     out
 }
 
-fn rule_tone(text: &str) -> RuleOutput {
+pub(crate) fn rule_tone(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     for pat in META_COMM_PATTERNS.iter() {
         for m in pat.find_iter(text) {
@@ -801,7 +964,7 @@ fn rule_tone(text: &str) -> RuleOutput {
                 rule: "tone".to_string(),
                 match_text: phrase.clone(),
                 context: context_around(text, m.start(), m.end(), width),
-                penalty: HP.tone_penalty,
+                penalty: hp.tone_penalty,
             });
             out.advice.push(format!(
                 "Remove '{phrase}' \u{2014} this is a direct AI tell."
@@ -818,7 +981,7 @@ fn rule_tone(text: &str) -> RuleOutput {
                 rule: "tone".to_string(),
                 match_text: phrase.clone(),
                 context: context_around(text, m.start(), m.end(), width),
-                penalty: HP.tone_penalty,
+                penalty: hp.tone_penalty,
             });
             out.advice
                 .push(format!("Cut '{phrase}' \u{2014} announce less, show more."));
@@ -839,7 +1002,7 @@ fn rule_tone(text: &str) -> RuleOutput {
                 rule: "tone".to_string(),
                 match_text: word.clone(),
                 context: context_around(text, full.start(), full.end(), width),
-                penalty: HP.sentence_opener_penalty,
+                penalty: hp.sentence_opener_penalty,
             });
             out.advice.push(format!(
                 "'{word}' as a sentence opener is an AI tell \u{2014} just make the point."
@@ -851,9 +1014,9 @@ fn rule_tone(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_weasel(text: &str) -> RuleOutput {
+pub(crate) fn rule_weasel(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     for pat in WEASEL_PATTERNS.iter() {
         for m in pat.find_iter(text) {
@@ -863,7 +1026,7 @@ fn rule_weasel(text: &str) -> RuleOutput {
                 rule: "weasel".to_string(),
                 match_text: phrase.clone(),
                 context: context_around(text, m.start(), m.end(), width),
-                penalty: HP.weasel_penalty,
+                penalty: hp.weasel_penalty,
             });
             out.advice.push(format!(
                 "Cut '{phrase}' \u{2014} either cite a source or own the claim."
@@ -874,9 +1037,9 @@ fn rule_weasel(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_ai_disclosure(text: &str) -> RuleOutput {
+pub(crate) fn rule_ai_disclosure(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     for pat in AI_DISCLOSURE_PATTERNS.iter() {
         for m in pat.find_iter(text) {
@@ -886,7 +1049,7 @@ fn rule_ai_disclosure(text: &str) -> RuleOutput {
                 rule: "ai_disclosure".to_string(),
                 match_text: phrase.clone(),
                 context: context_around(text, m.start(), m.end(), width),
-                penalty: HP.ai_disclosure_penalty,
+                penalty: hp.ai_disclosure_penalty,
             });
             out.advice.push(format!(
                 "Remove '{phrase}' \u{2014} AI self-disclosure in authored prose is a critical tell."
@@ -897,9 +1060,9 @@ fn rule_ai_disclosure(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_placeholder(text: &str) -> RuleOutput {
+pub(crate) fn rule_placeholder(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     for m in PLACEHOLDER_RE.find_iter(text) {
         let match_text = m.as_str().to_lowercase();
@@ -908,7 +1071,7 @@ fn rule_placeholder(text: &str) -> RuleOutput {
             rule: "placeholder".to_string(),
             match_text: match_text.clone(),
             context: context_around(text, m.start(), m.end(), width),
-            penalty: HP.placeholder_penalty,
+            penalty: hp.placeholder_penalty,
         });
         out.advice.push(format!(
             "Remove placeholder '{match_text}' \u{2014} this is unfinished template text."
@@ -918,10 +1081,10 @@ fn rule_placeholder(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_rhythm(sentences: &[String]) -> RuleOutput {
+pub(crate) fn rule_rhythm(sentences: &[String], hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
 
-    if sentences.len() < HP.rhythm_min_sentences {
+    if sentences.len() < hp.rhythm_min_sentences {
         return out;
     }
 
@@ -938,7 +1101,7 @@ fn rule_rhythm(sentences: &[String]) -> RuleOutput {
     let std = variance.sqrt();
     let cv = std / mean;
 
-    if cv < HP.rhythm_cv_threshold {
+    if cv < hp.rhythm_cv_threshold {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "rhythm".to_string(),
@@ -947,7 +1110,7 @@ fn rule_rhythm(sentences: &[String]) -> RuleOutput {
                 "CV={cv:.2} across {} sentences (mean {mean:.1} words)",
                 sentences.len()
             ),
-            penalty: HP.rhythm_penalty,
+            penalty: hp.rhythm_penalty,
         });
         out.advice.push(format!(
             "Sentence lengths are too uniform (CV={cv:.2}) \u{2014} vary short and long."
@@ -957,15 +1120,15 @@ fn rule_rhythm(sentences: &[String]) -> RuleOutput {
     out
 }
 
-fn rule_em_dash_density(text: &str, wc: usize) -> RuleOutput {
+pub(crate) fn rule_em_dash_density(text: &str, wc: usize, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
     if wc == 0 {
         return out;
     }
 
     let em_dash_count = EM_DASH_RE.find_iter(text).count();
-    let ratio_per_150 = (em_dash_count as f64 / wc as f64) * HP.em_dash_words_basis;
-    if ratio_per_150 > HP.em_dash_density_threshold {
+    let ratio_per_150 = (em_dash_count as f64 / wc as f64) * hp.em_dash_words_basis;
+    if ratio_per_150 > hp.em_dash_density_threshold {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "em_dash".to_string(),
@@ -973,7 +1136,7 @@ fn rule_em_dash_density(text: &str, wc: usize) -> RuleOutput {
             context: format!(
                 "{em_dash_count} em dashes in {wc} words ({ratio_per_150:.1} per 150 words)"
             ),
-            penalty: HP.em_dash_penalty,
+            penalty: hp.em_dash_penalty,
         });
         out.advice.push(format!(
             "Too many em dashes ({em_dash_count} in {wc} words) \u{2014} use other punctuation."
@@ -983,21 +1146,21 @@ fn rule_em_dash_density(text: &str, wc: usize) -> RuleOutput {
     out
 }
 
-fn rule_contrast_pairs(text: &str) -> RuleOutput {
+pub(crate) fn rule_contrast_pairs(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     let matches: Vec<_> = CONTRAST_PAIR_RE.find_iter(text).collect();
     let count = matches.len();
 
-    for m in matches.iter().take(HP.contrast_record_cap) {
+    for m in matches.iter().take(hp.contrast_record_cap) {
         let matched = m.as_str().to_string();
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "contrast_pair".to_string(),
             match_text: matched.clone(),
             context: context_around(text, m.start(), m.end(), width),
-            penalty: HP.contrast_penalty,
+            penalty: hp.contrast_penalty,
         });
         out.advice.push(format!(
             "'{matched}' \u{2014} 'X, not Y' contrast \u{2014} consider rephrasing to avoid the Claude pattern."
@@ -1005,7 +1168,7 @@ fn rule_contrast_pairs(text: &str) -> RuleOutput {
         out.inc("contrast_pairs");
     }
 
-    if count >= HP.contrast_advice_min {
+    if count >= hp.contrast_advice_min {
         out.advice.push(format!(
             "{count} 'X, not Y' contrasts \u{2014} this is a Claude rhetorical tic. Vary your phrasing."
         ));
@@ -1013,21 +1176,21 @@ fn rule_contrast_pairs(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_setup_resolution(text: &str) -> RuleOutput {
+pub(crate) fn rule_setup_resolution(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
-    let width = HP.context_window_chars;
+    let width = hp.context_window_chars;
 
     let mut setup_res_recorded = 0usize;
     for pat in [&*SETUP_RESOLUTION_A_RE, &*SETUP_RESOLUTION_B_RE] {
         for m in pat.find_iter(text) {
-            if setup_res_recorded < HP.setup_resolution_record_cap {
+            if setup_res_recorded < hp.setup_resolution_record_cap {
                 let matched = m.as_str().to_string();
                 out.violations.push(Violation {
                     violation_type: "Violation".to_string(),
                     rule: "setup_resolution".to_string(),
                     match_text: matched.clone(),
                     context: context_around(text, m.start(), m.end(), width),
-                    penalty: HP.setup_resolution_penalty,
+                    penalty: hp.setup_resolution_penalty,
                 });
                 out.advice.push(format!(
                     "'{matched}' \u{2014} setup-and-resolution is a Claude rhetorical tic. Just state the point directly."
@@ -1040,7 +1203,7 @@ fn rule_setup_resolution(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_colon_density(text: &str) -> RuleOutput {
+pub(crate) fn rule_colon_density(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
 
     let stripped_text = strip_code_blocks(text);
@@ -1071,8 +1234,8 @@ fn rule_colon_density(text: &str) -> RuleOutput {
         return out;
     }
 
-    let colon_ratio_per_150 = (colon_count as f64 / stripped_wc as f64) * HP.colon_words_basis;
-    if colon_ratio_per_150 > HP.colon_density_threshold {
+    let colon_ratio_per_150 = (colon_count as f64 / stripped_wc as f64) * hp.colon_words_basis;
+    if colon_ratio_per_150 > hp.colon_density_threshold {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "colon_density".to_string(),
@@ -1080,7 +1243,7 @@ fn rule_colon_density(text: &str) -> RuleOutput {
             context: format!(
                 "{colon_count} elaboration colons in {stripped_wc} words ({colon_ratio_per_150:.1} per 150 words)"
             ),
-            penalty: HP.colon_density_penalty,
+            penalty: hp.colon_density_penalty,
         });
         out.advice.push(format!(
             "Too many elaboration colons ({colon_count} in {stripped_wc} words) \u{2014} use periods or restructure sentences."
@@ -1090,7 +1253,7 @@ fn rule_colon_density(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_pithy_fragments(sentences: &[String]) -> RuleOutput {
+pub(crate) fn rule_pithy_fragments(sentences: &[String], hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
     let mut pithy_count = 0usize;
 
@@ -1100,17 +1263,17 @@ fn rule_pithy_fragments(sentences: &[String]) -> RuleOutput {
             continue;
         }
         let sent_words: Vec<&str> = s.split_whitespace().collect();
-        if sent_words.len() > HP.pithy_max_sentence_words {
+        if sent_words.len() > hp.pithy_max_sentence_words {
             continue;
         }
         if PITHY_PIVOT_RE.is_match(s) {
-            if pithy_count < HP.pithy_record_cap {
+            if pithy_count < hp.pithy_record_cap {
                 out.violations.push(Violation {
                     violation_type: "Violation".to_string(),
                     rule: "pithy_fragment".to_string(),
                     match_text: s.to_string(),
                     context: s.to_string(),
-                    penalty: HP.pithy_penalty,
+                    penalty: hp.pithy_penalty,
                 });
                 out.advice.push(format!(
                     "'{s}' \u{2014} pithy evaluative fragments are a Claude tell. Expand or cut."
@@ -1123,7 +1286,7 @@ fn rule_pithy_fragments(sentences: &[String]) -> RuleOutput {
     out
 }
 
-fn rule_bullet_density(lines: &[&str]) -> RuleOutput {
+pub(crate) fn rule_bullet_density(lines: &[&str], hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
 
     let non_empty: Vec<&&str> = lines.iter().filter(|l| !l.trim().is_empty()).collect();
@@ -1137,7 +1300,7 @@ fn rule_bullet_density(lines: &[&str]) -> RuleOutput {
         .filter(|l| BULLET_DENSITY_RE.is_match(l))
         .count();
     let bullet_ratio = bullet_count as f64 / total_non_empty as f64;
-    if bullet_ratio > HP.bullet_density_threshold {
+    if bullet_ratio > hp.bullet_density_threshold {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "structural".to_string(),
@@ -1146,7 +1309,7 @@ fn rule_bullet_density(lines: &[&str]) -> RuleOutput {
                 "{bullet_count} of {total_non_empty} non-empty lines are bullets ({:.0}%)",
                 bullet_ratio * 100.0
             ),
-            penalty: HP.bullet_density_penalty,
+            penalty: hp.bullet_density_penalty,
         });
         out.advice.push(format!(
             "Over {:.0}% of lines are bullets \u{2014} write prose instead of lists.",
@@ -1157,7 +1320,7 @@ fn rule_bullet_density(lines: &[&str]) -> RuleOutput {
     out
 }
 
-fn rule_blockquote_density(lines: &[&str]) -> RuleOutput {
+pub(crate) fn rule_blockquote_density(lines: &[&str], hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
 
     let mut in_code_block = false;
@@ -1172,10 +1335,10 @@ fn rule_blockquote_density(lines: &[&str]) -> RuleOutput {
         }
     }
 
-    if blockquote_count >= HP.blockquote_min_lines {
-        let excess = blockquote_count - HP.blockquote_free_lines;
-        let capped = std::cmp::min(excess, HP.blockquote_cap);
-        let bq_penalty = HP.blockquote_penalty_step * capped as i32;
+    if blockquote_count >= hp.blockquote_min_lines {
+        let excess = blockquote_count - hp.blockquote_free_lines;
+        let capped = std::cmp::min(excess, hp.blockquote_cap);
+        let bq_penalty = hp.blockquote_penalty_step * capped as i32;
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "structural".to_string(),
@@ -1193,7 +1356,7 @@ fn rule_blockquote_density(lines: &[&str]) -> RuleOutput {
     out
 }
 
-fn rule_bold_bullet_runs(lines: &[&str]) -> RuleOutput {
+pub(crate) fn rule_bold_bullet_runs(lines: &[&str], hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
 
     let mut bold_bullet_run = 0usize;
@@ -1202,13 +1365,13 @@ fn rule_bold_bullet_runs(lines: &[&str]) -> RuleOutput {
             bold_bullet_run += 1;
             continue;
         }
-        if bold_bullet_run >= HP.bold_bullet_run_min {
+        if bold_bullet_run >= hp.bold_bullet_run_min {
             out.violations.push(Violation {
                 violation_type: "Violation".to_string(),
                 rule: "structural".to_string(),
                 match_text: "bold_bullet_list".to_string(),
                 context: format!("Run of {bold_bullet_run} bold-term bullets"),
-                penalty: HP.bold_bullet_run_penalty,
+                penalty: hp.bold_bullet_run_penalty,
             });
             out.advice.push(format!(
                 "Run of {bold_bullet_run} bold-term bullets \u{2014} this is an LLM listicle pattern. Use varied paragraph structure."
@@ -1217,13 +1380,13 @@ fn rule_bold_bullet_runs(lines: &[&str]) -> RuleOutput {
         }
         bold_bullet_run = 0;
     }
-    if bold_bullet_run >= HP.bold_bullet_run_min {
+    if bold_bullet_run >= hp.bold_bullet_run_min {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "structural".to_string(),
             match_text: "bold_bullet_list".to_string(),
             context: format!("Run of {bold_bullet_run} bold-term bullets"),
-            penalty: HP.bold_bullet_run_penalty,
+            penalty: hp.bold_bullet_run_penalty,
         });
         out.advice.push(format!(
             "Run of {bold_bullet_run} bold-term bullets \u{2014} this is an LLM listicle pattern. Use varied paragraph structure."
@@ -1233,17 +1396,17 @@ fn rule_bold_bullet_runs(lines: &[&str]) -> RuleOutput {
     out
 }
 
-fn rule_horizontal_rules(text: &str) -> RuleOutput {
+pub(crate) fn rule_horizontal_rules(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
 
     let hr_count = HORIZONTAL_RULE_RE.find_iter(text).count();
-    if hr_count >= HP.horizontal_rule_min {
+    if hr_count >= hp.horizontal_rule_min {
         out.violations.push(Violation {
             violation_type: "Violation".to_string(),
             rule: "structural".to_string(),
             match_text: "horizontal_rules".to_string(),
             context: format!("{hr_count} horizontal rules \u{2014} excessive section dividers"),
-            penalty: HP.horizontal_rule_penalty,
+            penalty: hp.horizontal_rule_penalty,
         });
         out.advice.push(format!(
             "{hr_count} horizontal rules \u{2014} section headers alone are sufficient, dividers are a crutch."
@@ -1253,12 +1416,12 @@ fn rule_horizontal_rules(text: &str) -> RuleOutput {
     out
 }
 
-fn rule_phrase_reuse(text: &str) -> RuleOutput {
+pub(crate) fn rule_phrase_reuse(text: &str, hp: &Hyperparameters) -> RuleOutput {
     let mut out = RuleOutput::new();
 
-    let repeated = find_repeated_ngrams(text);
+    let repeated = find_repeated_ngrams(text, hp);
     for (recorded, ng) in repeated.iter().enumerate() {
-        if recorded >= HP.phrase_reuse_record_cap {
+        if recorded >= hp.phrase_reuse_record_cap {
             break;
         }
         out.violations.push(Violation {
@@ -1269,7 +1432,7 @@ fn rule_phrase_reuse(text: &str) -> RuleOutput {
                 "'{}' ({}-word phrase) appears {} times",
                 ng.phrase, ng.n, ng.count
             ),
-            penalty: HP.phrase_reuse_penalty,
+            penalty: hp.phrase_reuse_penalty,
         });
         out.advice.push(format!(
             "'{}' appears {} times \u{2014} vary your phrasing to avoid repetition.",
@@ -1284,23 +1447,21 @@ fn rule_phrase_reuse(text: &str) -> RuleOutput {
 // Scoring
 // ---------------------------------------------------------------------------
 
-fn compute_weighted_sum(violations: &[Violation], counts: &HashMap<String, usize>) -> f64 {
+fn compute_weighted_sum(
+    violations: &[Violation],
+    counts: &HashMap<String, usize>,
+    hp: &Hyperparameters,
+) -> f64 {
     let mut weighted_sum = 0.0f64;
     for v in violations {
         let penalty = v.penalty.unsigned_abs() as f64;
         let rule = &v.rule;
 
-        // Check if rule or rule+"s" is in claude_categories
-        let cat_key = if HP.claude_categories.contains(&rule.as_str()) {
-            Some(rule.as_str())
-        } else {
-            let with_s = format!("{rule}s");
-            if HP.claude_categories.iter().any(|c| *c == with_s) {
-                Some("")
-            } else {
-                None
-            }
-        };
+        let is_claude_cat = hp.claude_categories.iter().any(|c| c == rule)
+            || hp
+                .claude_categories
+                .iter()
+                .any(|c| c == &format!("{rule}s"));
 
         // Get the count for the rule
         let cat_count = counts
@@ -1309,8 +1470,8 @@ fn compute_weighted_sum(violations: &[Violation], counts: &HashMap<String, usize
             .unwrap_or(0)
             .max(counts.get(&format!("{rule}s")).copied().unwrap_or(0));
 
-        if cat_key.is_some() && cat_count > 1 {
-            let weight = penalty * (1.0 + HP.concentration_alpha * (cat_count as f64 - 1.0));
+        if is_claude_cat && cat_count > 1 {
+            let weight = penalty * (1.0 + hp.concentration_alpha * (cat_count as f64 - 1.0));
             weighted_sum += weight;
         } else {
             weighted_sum += penalty;
@@ -1319,14 +1480,14 @@ fn compute_weighted_sum(violations: &[Violation], counts: &HashMap<String, usize
     weighted_sum
 }
 
-fn band_for_score(score: i32) -> &'static str {
-    if score >= HP.band_clean_min {
+fn band_for_score(score: i32, hp: &Hyperparameters) -> &'static str {
+    if score >= hp.band_clean_min {
         "clean"
-    } else if score >= HP.band_light_min {
+    } else if score >= hp.band_light_min {
         "light"
-    } else if score >= HP.band_moderate_min {
+    } else if score >= hp.band_moderate_min {
         "moderate"
-    } else if score >= HP.band_heavy_min {
+    } else if score >= hp.band_heavy_min {
         "heavy"
     } else {
         "saturated"
@@ -1368,12 +1529,16 @@ fn merge_output(
 // ---------------------------------------------------------------------------
 
 pub fn analyze(text: &str) -> AnalysisResult {
+    analyze_with_config(text, &Hyperparameters::default())
+}
+
+pub fn analyze_with_config(text: &str, hp: &Hyperparameters) -> AnalysisResult {
     let wc = word_count(text);
     let counts_init = initial_counts();
 
-    if wc < HP.short_text_word_count {
+    if wc < hp.short_text_word_count {
         return AnalysisResult {
-            score: HP.score_max,
+            score: hp.score_max,
             band: "clean".to_string(),
             word_count: wc,
             violations: vec![],
@@ -1386,11 +1551,7 @@ pub fn analyze(text: &str) -> AnalysisResult {
     }
 
     let lines: Vec<&str> = text.split('\n').collect();
-    let sentences: Vec<String> = SENTENCE_SPLIT_RE
-        .split(text)
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let sentences: Vec<String> = split_sentences(text);
 
     let mut violations: Vec<Violation> = Vec::new();
     let mut advice: Vec<String> = Vec::new();
@@ -1401,128 +1562,138 @@ pub fn analyze(text: &str) -> AnalysisResult {
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_slop_words(text),
+        rule_slop_words(text, hp),
     );
     // 2. Slop phrases
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_slop_phrases(text),
+        rule_slop_phrases(text, hp),
     );
     // 3. Structural
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_structural(text, &lines),
+        rule_structural(text, &lines, hp),
     );
     // 4. Tone
-    merge_output(&mut violations, &mut advice, &mut counts, rule_tone(text));
+    merge_output(
+        &mut violations,
+        &mut advice,
+        &mut counts,
+        rule_tone(text, hp),
+    );
     // 5. Weasel
-    merge_output(&mut violations, &mut advice, &mut counts, rule_weasel(text));
+    merge_output(
+        &mut violations,
+        &mut advice,
+        &mut counts,
+        rule_weasel(text, hp),
+    );
     // 6. AI disclosure
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_ai_disclosure(text),
+        rule_ai_disclosure(text, hp),
     );
     // 7. Placeholder
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_placeholder(text),
+        rule_placeholder(text, hp),
     );
     // 8. Rhythm
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_rhythm(&sentences),
+        rule_rhythm(&sentences, hp),
     );
     // 9. Em dash density
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_em_dash_density(text, wc),
+        rule_em_dash_density(text, wc, hp),
     );
     // 10. Contrast pairs
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_contrast_pairs(text),
+        rule_contrast_pairs(text, hp),
     );
     // 11. Setup-resolution
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_setup_resolution(text),
+        rule_setup_resolution(text, hp),
     );
     // 12. Colon density
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_colon_density(text),
+        rule_colon_density(text, hp),
     );
     // 13. Pithy fragments
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_pithy_fragments(&sentences),
+        rule_pithy_fragments(&sentences, hp),
     );
     // 14. Bullet density
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_bullet_density(&lines),
+        rule_bullet_density(&lines, hp),
     );
     // 15. Blockquote density
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_blockquote_density(&lines),
+        rule_blockquote_density(&lines, hp),
     );
     // 16. Bold bullet runs
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_bold_bullet_runs(&lines),
+        rule_bold_bullet_runs(&lines, hp),
     );
     // 17. Horizontal rules
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_horizontal_rules(text),
+        rule_horizontal_rules(text, hp),
     );
     // 18. Phrase reuse
     merge_output(
         &mut violations,
         &mut advice,
         &mut counts,
-        rule_phrase_reuse(text),
+        rule_phrase_reuse(text, hp),
     );
 
     let total_penalty: i32 = violations.iter().map(|v| v.penalty).sum();
-    let weighted_sum = compute_weighted_sum(&violations, &counts);
+    let weighted_sum = compute_weighted_sum(&violations, &counts, hp);
     let density = if wc > 0 {
-        weighted_sum / (wc as f64 / HP.density_words_basis)
+        weighted_sum / (wc as f64 / hp.density_words_basis)
     } else {
         0.0
     };
-    let raw_score = HP.score_max as f64 * (-HP.decay_lambda * density).exp();
-    let score = (raw_score.round() as i32).clamp(HP.score_min, HP.score_max);
-    let band = band_for_score(score).to_string();
+    let raw_score = hp.score_max as f64 * (-hp.decay_lambda * density).exp();
+    let score = (raw_score.round() as i32).clamp(hp.score_min, hp.score_max);
+    let band = band_for_score(score, hp).to_string();
 
     AnalysisResult {
         score,
@@ -1536,3 +1707,6 @@ pub fn analyze(text: &str) -> AnalysisResult {
         advice: deduplicate_advice(advice),
     }
 }
+
+#[cfg(test)]
+mod rule_tests;
