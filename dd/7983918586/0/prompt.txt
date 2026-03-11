@@ -1,0 +1,15 @@
+- **slop-guard-rs** (outdated_deps): Outdated: clap
+
+can we bump clap
+
+---
+
+[Request interrupted by user]
+
+---
+
+make sure to run tests and what not afterwards
+
+---
+
+yup
