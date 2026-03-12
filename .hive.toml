@@ -1,0 +1,6 @@
+[project]
+name = "slop-guard-rs"
+
+[hive]
+backend = "claude"
+merge_queue_enabled = false
